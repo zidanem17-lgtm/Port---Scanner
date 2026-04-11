@@ -6,14 +6,19 @@ from datetime import datetime
 COMMON_PORTS = {
     20: "FTP-DATA", 21: "FTP", 22: "SSH", 23: "TELNET", 25: "SMTP", 53: "DNS",
     80: "HTTP", 110: "POP3", 135: "MSRPC", 139: "NETBIOS", 143: "IMAP",
-    443: "HTTPS", 445: "SMB", 3389: "RDP"
+    443: "HTTPS", 445: "SMB", 993: "IMAPS", 995: "POP3S", 1433: "MSSQL",
+    3306: "MYSQL", 3389: "RDP", 5432: "POSTGRESQL", 5900: "VNC",
+    8080: "HTTP-PROXY", 8443: "HTTPS-ALT",
 }
 
 def check_port(host: str, port: int, timeout: float = 0.6):
     """Return (port, is_open)."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(timeout)
-        return port, (s.connect_ex((host, port)) == 0)
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(timeout)
+            return port, (s.connect_ex((host, port)) == 0)
+    except socket.error:
+        return port, False
 
 def parse_ports(mode: str):
     """
@@ -31,7 +36,10 @@ def parse_ports(mode: str):
         if "-" not in raw:
             raise ValueError("Invalid range format. Use like 1-1024.")
         start_s, end_s = raw.split("-", 1)
-        start, end = int(start_s), int(end_s)
+        try:
+            start, end = int(start_s), int(end_s)
+        except ValueError:
+            raise ValueError("Port numbers must be integers.")
         if start < 1 or end > 65535 or start > end:
             raise ValueError("Range must be 1-65535 and start <= end.")
         return list(range(start, end + 1))
